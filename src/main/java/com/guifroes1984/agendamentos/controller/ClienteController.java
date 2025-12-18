@@ -16,13 +16,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.guifroes1984.agendamentos.dto.response.ClienteResponse;
+import com.guifroes1984.agendamentos.dto.resquest.ClienteRequest;
 import com.guifroes1984.agendamentos.model.Cliente;
 import com.guifroes1984.agendamentos.repository.ClienteRepository;
+import com.guifroes1984.agendamentos.service.ClienteService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -33,22 +37,20 @@ public class ClienteController {
 	@Autowired
 	private ClienteRepository clienteRepository;
 
-	@Operation(summary = "Listar todos os clientes")
-	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Lista de clientes retornada com sucesso"),
+	@Autowired
+	private ClienteService clienteService;
+
+	@Operation(summary = "Listar todos os clientes DTO")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Lista de clientes retornada com sucesso DTO"),
 	@ApiResponse(responseCode = "500", description = "Erro interno no servidor") })
 	@GetMapping
-	public ResponseEntity<List<Cliente>> listarTodos() {
-		try {
-			List<Cliente> clientes = clienteRepository.findAll();
-			return ResponseEntity.ok(clientes);
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-		}
+	public ResponseEntity<List<ClienteResponse>> listarTodos() {
+		List<ClienteResponse> clientes = clienteService.listarTodos();
+		return ResponseEntity.ok(clientes);
 	}
 
 	@Operation(summary = "Buscar cliente por ID")
-	@ApiResponses({
-	@ApiResponse(responseCode = "200", description = "Cliente encontrado"),
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Cliente encontrado"),
 	@ApiResponse(responseCode = "404", description = "Cliente não encontrado"),
 	@ApiResponse(responseCode = "500", description = "Erro interno") })
 	@GetMapping("/{id}")
@@ -66,96 +68,47 @@ public class ClienteController {
 		}
 	}
 
-	@Operation(summary = "Criar um novo cliente")
-	@ApiResponses({
-	@ApiResponse(responseCode = "201", description = "Cliente criado com sucesso"),
+	@Operation(summary = "Criar um novo cliente DTO")
+	@ApiResponses({ @ApiResponse(responseCode = "201", description = "Cliente criado com sucesso DTO"),
 	@ApiResponse(responseCode = "400", description = "Dados inválidos"),
 	@ApiResponse(responseCode = "409", description = "Email ou telefone já cadastrado"),
 	@ApiResponse(responseCode = "500", description = "Erro interno") })
 	@PostMapping
-	public ResponseEntity<?> criar(@RequestBody Cliente cliente) {
+	public ResponseEntity<?> criar(@Valid @RequestBody ClienteRequest request) {
 		try {
-			if (cliente.getEmail() == null || cliente.getEmail().trim().isEmpty()) {
-				return ResponseEntity.badRequest().body("Email é obrigatório");
-			}
-
-			if (cliente.getNome() == null || cliente.getNome().trim().isEmpty()) {
-				return ResponseEntity.badRequest().body("Nome é obrigatório");
-			}
-
-			if (clienteRepository.existsByEmail(cliente.getEmail())) {
-				return ResponseEntity.status(HttpStatus.CONFLICT).body("Email já cadastrado: " + cliente.getEmail());
-			}
-
-			if (cliente.getTelefone() != null && !cliente.getTelefone().trim().isEmpty()
-					&& clienteRepository.existsByTelefone(cliente.getTelefone())) {
-				return ResponseEntity.status(HttpStatus.CONFLICT)
-						.body("Telefone já cadastrado: " + cliente.getTelefone());
-			}
-
-			Cliente clienteSalvo = clienteRepository.save(cliente);
-			return ResponseEntity.status(HttpStatus.CREATED).body(clienteSalvo);
-
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("Erro ao criar cliente: " + e.getMessage());
+			ClienteResponse cliente = clienteService.criar(request);
+			return ResponseEntity.status(HttpStatus.CREATED).body(cliente);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(e.getMessage());
 		}
 	}
 
-	@Operation(summary = "Atualizar cliente existente")
-	@ApiResponses({
-	@ApiResponse(responseCode = "200", description = "Cliente atualizado"),
+	@Operation(summary = "Atualizar cliente existente DTO")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Cliente atualizado DTO"),
 	@ApiResponse(responseCode = "404", description = "Cliente não encontrado"),
 	@ApiResponse(responseCode = "409", description = "Email já em uso"),
 	@ApiResponse(responseCode = "500", description = "Erro interno") })
 	@PutMapping("/{id}")
-	public ResponseEntity<?> atualizar(@PathVariable Long id, @RequestBody Cliente clienteAtualizado) {
+	public ResponseEntity<?> atualizar(@PathVariable Long id, @Valid @RequestBody ClienteRequest request) {
 		try {
-			Optional<Cliente> clienteExistente = clienteRepository.findById(id);
-
-			if (clienteExistente.isEmpty()) {
-				return ResponseEntity.notFound().build();
-			}
-
-			Cliente cliente = clienteExistente.get();
-
-			if (!cliente.getEmail().equals(clienteAtualizado.getEmail())
-					&& clienteRepository.existsByEmail(clienteAtualizado.getEmail())) {
-				return ResponseEntity.status(HttpStatus.CONFLICT)
-						.body("Email já cadastrado: " + clienteAtualizado.getEmail());
-			}
-
-			cliente.setNome(clienteAtualizado.getNome());
-			cliente.setEmail(clienteAtualizado.getEmail());
-			cliente.setTelefone(clienteAtualizado.getTelefone());
-			cliente.setObservacoes(clienteAtualizado.getObservacoes());
-
-			Cliente clienteAtualizadoSalvo = clienteRepository.save(cliente);
-			return ResponseEntity.ok(clienteAtualizadoSalvo);
-
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("Erro ao atualizar cliente: " + e.getMessage());
+			ClienteResponse cliente = clienteService.atualizar(id, request);
+			return ResponseEntity.ok(cliente);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(e.getMessage());
 		}
 	}
 
 	@Operation(summary = "Excluir cliente por ID")
-	@ApiResponses({
-	@ApiResponse(responseCode = "204", description = "Cliente removido"),
+	@ApiResponses({ @ApiResponse(responseCode = "204", description = "Cliente removido"),
 	@ApiResponse(responseCode = "404", description = "Cliente não encontrado"),
 	@ApiResponse(responseCode = "500", description = "Erro interno") })
 	@DeleteMapping("/{id}")
 	public ResponseEntity<Void> deletar(@PathVariable Long id) {
 		try {
-			if (!clienteRepository.existsById(id)) {
-				return ResponseEntity.notFound().build();
-			}
-
-			clienteRepository.deleteById(id);
+			clienteService.deletar(id);
 			return ResponseEntity.noContent().build();
-
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.notFound().build();
 		}
 	}
 

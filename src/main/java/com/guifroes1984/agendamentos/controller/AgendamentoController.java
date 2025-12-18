@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.guifroes1984.agendamentos.dto.response.AgendamentoResponse;
+import com.guifroes1984.agendamentos.dto.resquest.AgendamentoRequest;
 import com.guifroes1984.agendamentos.model.Agendamento;
 import com.guifroes1984.agendamentos.service.AgendamentoService;
 
@@ -29,6 +31,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/agendamentos")
@@ -38,6 +41,101 @@ public class AgendamentoController {
 
 	@Autowired
 	private AgendamentoService agendamentoService;
+
+	@Operation(summary = "Listar todos os agendamentos DTO")
+	@ApiResponse(responseCode = "200", description = "Lista de agendamentos retornada com sucesso")
+	@GetMapping("/dto")
+	public ResponseEntity<List<AgendamentoResponse>> listarTodosDTO() {
+		try {
+			List<AgendamentoResponse> agendamentos = agendamentoService.listarTodosResponse();
+			return ResponseEntity.ok(agendamentos);
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
+	@Operation(summary = "Buscar agendamento por ID DTO")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Agendamento encontrado"),
+			@ApiResponse(responseCode = "404", description = "Agendamento não encontrado") })
+	@GetMapping("/dto/{id}")
+	public ResponseEntity<AgendamentoResponse> buscarPorIdDTO(@PathVariable Long id) {
+		try {
+			AgendamentoResponse agendamento = agendamentoService.buscarPorIdResponse(id);
+			return ResponseEntity.ok(agendamento);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.notFound().build();
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
+	@Operation(summary = "Criar novo agendamento DTO")
+	@ApiResponse(responseCode = "201", description = "Agendamento criado com sucesso", content = @Content(schema = @Schema(implementation = AgendamentoResponse.class)))
+	@PostMapping("/dto")
+	public ResponseEntity<?> criarDTO(@Valid @RequestBody AgendamentoRequest request) {
+		try {
+			AgendamentoResponse agendamento = agendamentoService.criar(request);
+			return ResponseEntity.status(HttpStatus.CREATED).body(agendamento);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(e.getMessage());
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body("Erro ao criar agendamento: " + e.getMessage());
+		}
+	}
+
+	@Operation(summary = "Buscar agendamentos por cliente DTO")
+	@GetMapping("/dto/cliente/{clienteId}")
+	public ResponseEntity<List<AgendamentoResponse>> buscarPorClienteDTO(
+			@Parameter(description = "ID do cliente", example = "5") @PathVariable Long clienteId) {
+		try {
+			List<AgendamentoResponse> agendamentos = agendamentoService.buscarPorClienteResponse(clienteId);
+			return ResponseEntity.ok(agendamentos);
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
+	@Operation(summary = "Atualizar status do agendamento DTO")
+	@PutMapping("/dto/{id}/status")
+	public ResponseEntity<?> atualizarStatusDTO(@PathVariable Long id, @RequestParam String status) {
+		try {
+			AgendamentoResponse agendamento = agendamentoService.atualizarStatusResponse(id, status);
+			return ResponseEntity.ok(agendamento);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(e.getMessage());
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body("Erro ao atualizar status: " + e.getMessage());
+		}
+	}
+
+	@Operation(summary = "Cancelar agendamento DTO")
+	@DeleteMapping("/dto/{id}")
+	public ResponseEntity<?> cancelarDTO(@PathVariable Long id) {
+		try {
+			AgendamentoResponse agendamento = agendamentoService.cancelarResponse(id);
+			return ResponseEntity.ok(agendamento);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(e.getMessage());
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body("Erro ao cancelar agendamento: " + e.getMessage());
+		}
+	}
+
+	@Operation(summary = "Buscar agendamentos por período DTO")
+	@GetMapping("/dto/periodo")
+	public ResponseEntity<List<AgendamentoResponse>> buscarPorPeriodoDTO(
+			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
+			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fim) {
+		try {
+			List<AgendamentoResponse> agendamentos = agendamentoService.buscarPorPeriodoResponse(inicio, fim);
+			return ResponseEntity.ok(agendamentos);
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
 
 	@Operation(summary = "Listar todos os agendamentos")
 	@ApiResponse(responseCode = "200", description = "Lista de agendamentos retornada com sucesso")
@@ -81,68 +179,8 @@ public class AgendamentoController {
 		}
 	}
 
-	@Operation(summary = "Buscar agendamentos futuros por cliente")
-	@GetMapping("/cliente/{clienteId}/futuros")
-	public ResponseEntity<List<Agendamento>> buscarFuturosPorCliente(@PathVariable Long clienteId) {
-		try {
-			List<Agendamento> agendamentos = agendamentoService.buscarFuturosPorCliente(clienteId);
-			return ResponseEntity.ok(agendamentos);
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-		}
-	}
-
-	@Operation(summary = "Buscar agendamentos passados por cliente")
-	@GetMapping("/cliente/{clienteId}/passados")
-	public ResponseEntity<List<Agendamento>> buscarPassadosPorCliente(@PathVariable Long clienteId) {
-		try {
-			List<Agendamento> agendamentos = agendamentoService.buscarPassadosPorCliente(clienteId);
-			return ResponseEntity.ok(agendamentos);
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-		}
-	}
-
-	@Operation(summary = "Buscar agendamentos por profissional")
-	@GetMapping("/profissional/{profissionalId}")
-	public ResponseEntity<List<Agendamento>> buscarPorProfissional(@PathVariable Long profissionalId) {
-		try {
-			List<Agendamento> agendamentos = agendamentoService.buscarPorProfissional(profissionalId);
-			return ResponseEntity.ok(agendamentos);
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-		}
-	}
-
-	@Operation(summary = "Buscar agendamentos futuros por profissional")
-	@GetMapping("/profissional/{profissionalId}/futuros")
-	public ResponseEntity<List<Agendamento>> buscarFuturosPorProfissional(@PathVariable Long profissionalId) {
-		try {
-			List<Agendamento> agendamentos = agendamentoService.buscarFuturosPorProfissional(profissionalId);
-			return ResponseEntity.ok(agendamentos);
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-		}
-	}
-
-	@Operation(summary = "Buscar agendamentos por status")
-	@GetMapping("/status/{status}")
-	public ResponseEntity<List<Agendamento>> buscarPorStatus(
-			@Parameter(description = "Status do agendamento", example = "AGENDADO") 
-			@PathVariable String status) {
-		try {
-			List<Agendamento> agendamentos = agendamentoService.buscarPorStatus(status);
-			return ResponseEntity.ok(agendamentos);
-		} catch (IllegalArgumentException e) {
-			return ResponseEntity.badRequest().build();
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-		}
-	}
-
 	@Operation(summary = "Criar novo agendamento")
-    @ApiResponse(responseCode = "201", description = "Agendamento criado com sucesso",
-        content = @Content(schema = @Schema(implementation = Agendamento.class)))
+	@ApiResponse(responseCode = "201", description = "Agendamento criado com sucesso", content = @Content(schema = @Schema(implementation = Agendamento.class)))
 	@PostMapping
 	public ResponseEntity<?> criar(@RequestBody Agendamento agendamento) {
 		try {
@@ -153,63 +191,6 @@ public class AgendamentoController {
 		} catch (Exception e) {
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body("Erro ao criar agendamento: " + e.getMessage());
-		}
-	}
-
-	@Operation(summary = "Atualizar agendamento")
-	@PutMapping("/{id}")
-	public ResponseEntity<?> atualizar(@PathVariable Long id, @RequestBody Agendamento agendamentoAtualizado) {
-		try {
-			Optional<Agendamento> agendamento = agendamentoService.atualizar(id, agendamentoAtualizado);
-
-			if (agendamento.isPresent()) {
-				return ResponseEntity.ok(agendamento.get());
-			} else {
-				return ResponseEntity.notFound().build();
-			}
-		} catch (IllegalArgumentException e) {
-			return ResponseEntity.badRequest().body(e.getMessage());
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("Erro ao atualizar agendamento: " + e.getMessage());
-		}
-	}
-
-	@Operation(summary = "Atualizar status do agendamento")
-	@PutMapping("/{id}/status")
-	public ResponseEntity<?> atualizarStatus(@PathVariable Long id, @RequestParam String status) {
-		try {
-			Optional<Agendamento> agendamento = agendamentoService.atualizarStatus(id, status);
-
-			if (agendamento.isPresent()) {
-				return ResponseEntity.ok(agendamento.get());
-			} else {
-				return ResponseEntity.notFound().build();
-			}
-		} catch (IllegalArgumentException e) {
-			return ResponseEntity.badRequest().body(e.getMessage());
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("Erro ao atualizar status: " + e.getMessage());
-		}
-	}
-
-	@Operation(summary = "Cancelar agendamento")
-	@DeleteMapping("/{id}")
-	public ResponseEntity<?> cancelar(@PathVariable Long id) {
-		try {
-			boolean cancelado = agendamentoService.cancelar(id);
-
-			if (cancelado) {
-				return ResponseEntity.noContent().build();
-			} else {
-				return ResponseEntity.notFound().build();
-			}
-		} catch (IllegalArgumentException e) {
-			return ResponseEntity.badRequest().body(e.getMessage());
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("Erro ao cancelar agendamento: " + e.getMessage());
 		}
 	}
 
@@ -224,19 +205,6 @@ public class AgendamentoController {
 		} catch (Exception e) {
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body("Erro ao verificar disponibilidade: " + e.getMessage());
-		}
-	}
-
-	@Operation(summary = "Buscar agendamentos por período")
-	@GetMapping("/periodo")
-	public ResponseEntity<List<Agendamento>> buscarPorPeriodo(
-			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
-			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fim) {
-		try {
-			List<Agendamento> agendamentos = agendamentoService.buscarPorPeriodo(inicio, fim);
-			return ResponseEntity.ok(agendamentos);
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
 		}
 	}
 }

@@ -1,8 +1,6 @@
 package com.guifroes1984.agendamentos.controller;
 
-import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,14 +15,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.guifroes1984.agendamentos.dto.response.ServicoResponse;
+import com.guifroes1984.agendamentos.dto.resquest.ServicoRequest;
 import com.guifroes1984.agendamentos.model.Servico;
-import com.guifroes1984.agendamentos.repository.ServicoRepository;
+import com.guifroes1984.agendamentos.service.ServicoService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/servicos")
@@ -33,105 +34,56 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class ServicoController {
 
 	@Autowired
-	private ServicoRepository servicoRepository;
+	private ServicoService servicoService;
 
-	@Operation(summary = "Listar todos os serviços")
+	@Operation(summary = "Listar todos os serviços DTO")
 	@ApiResponse(responseCode = "200", description = "Lista de serviços retornada com sucesso")
 	@GetMapping
-	public ResponseEntity<List<Servico>> listarTodos() {
-		try {
-			List<Servico> servicos = servicoRepository.findAll();
-			return ResponseEntity.ok(servicos);
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-		}
+	public ResponseEntity<List<ServicoResponse>> listarTodos() {
+		List<ServicoResponse> servicos = servicoService.listarTodos();
+		return ResponseEntity.ok(servicos);
 	}
 
-	@Operation(summary = "Listar serviços ativos")
+	@Operation(summary = "Listar serviços ativos DTO")
 	@GetMapping("/ativos")
-	public ResponseEntity<List<Servico>> listarAtivos() {
-		try {
-			List<Servico> servicos = servicoRepository.findByAtivoTrue();
-			return ResponseEntity.ok(servicos);
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-		}
+	public ResponseEntity<List<ServicoResponse>> listarAtivos() {
+		List<ServicoResponse> servicos = servicoService.listarAtivos();
+		return ResponseEntity.ok(servicos);
 	}
 
-	@Operation(summary = "Buscar serviço por ID")
+	@Operation(summary = "Buscar serviço por ID DTO")
 	@ApiResponse(responseCode = "200", description = "Serviço encontrado")
 	@ApiResponse(responseCode = "404", description = "Serviço não encontrado")
 	@GetMapping("/{id}")
-	public ResponseEntity<Servico> buscarPorId(@PathVariable Long id) {
+	public ResponseEntity<ServicoResponse> buscarPorId(@PathVariable Long id) {
 		try {
-			Optional<Servico> servico = servicoRepository.findById(id);
-
-			if (servico.isPresent()) {
-				return ResponseEntity.ok(servico.get());
-			} else {
-				return ResponseEntity.notFound().build();
-			}
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+			ServicoResponse servico = servicoService.buscarPorId(id);
+			return ResponseEntity.ok(servico);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.notFound().build();
 		}
 	}
 
 	@Operation(summary = "Cadastrar novo serviço", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(schema = @Schema(implementation = Servico.class))))
-	@ApiResponse(responseCode = "201", description = "Serviço criado com sucesso")
+	@ApiResponse(responseCode = "201", description = "Serviço criado com sucesso DTO")
 	@PostMapping
-	public ResponseEntity<?> criar(@RequestBody Servico servico) {
+	public ResponseEntity<?> criar(@Valid @RequestBody ServicoRequest request) {
 		try {
-
-			if (servico.getNome() == null || servico.getNome().trim().isEmpty()) {
-				return ResponseEntity.badRequest().body("Nome é obrigatório");
-			}
-
-			if (servico.getDuracaoMinutos() == null || servico.getDuracaoMinutos() <= 0) {
-				return ResponseEntity.badRequest().body("Duração deve ser maior que zero");
-			}
-
-			if (servico.getPreco() == null || servico.getPreco().compareTo(BigDecimal.ZERO) <= 0) {
-				return ResponseEntity.badRequest().body("Preço deve ser maior que zero");
-			}
-
-			if (servico.getAtivo() == null) {
-				servico.setAtivo(true);
-			}
-
-			Servico servicoSalvo = servicoRepository.save(servico);
-			return ResponseEntity.status(HttpStatus.CREATED).body(servicoSalvo);
-
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("Erro ao criar serviço: " + e.getMessage());
+			ServicoResponse servico = servicoService.criar(request);
+			return ResponseEntity.status(HttpStatus.CREATED).body(servico);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(e.getMessage());
 		}
 	}
 
-	@Operation(summary = "Atualizar serviço existente")
+	@Operation(summary = "Atualizar serviço existente DTO")
 	@PutMapping("/{id}")
-	public ResponseEntity<?> atualizar(@PathVariable Long id, @RequestBody Servico servicoAtualizado) {
+	public ResponseEntity<?> atualizar(@PathVariable Long id, @Valid @RequestBody ServicoRequest request) {
 		try {
-			Optional<Servico> servicoExistente = servicoRepository.findById(id);
-
-			if (servicoExistente.isEmpty()) {
-				return ResponseEntity.notFound().build();
-			}
-
-			Servico servico = servicoExistente.get();
-
-			servico.setNome(servicoAtualizado.getNome());
-			servico.setDescricao(servicoAtualizado.getDescricao());
-			servico.setDuracaoMinutos(servicoAtualizado.getDuracaoMinutos());
-			servico.setPreco(servicoAtualizado.getPreco());
-			servico.setCategoria(servicoAtualizado.getCategoria());
-			servico.setAtivo(servicoAtualizado.getAtivo());
-
-			Servico servicoAtualizadoSalvo = servicoRepository.save(servico);
-			return ResponseEntity.ok(servicoAtualizadoSalvo);
-
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("Erro ao atualizar serviço: " + e.getMessage());
+			ServicoResponse servico = servicoService.atualizar(id, request);
+			return ResponseEntity.ok(servico);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(e.getMessage());
 		}
 	}
 
@@ -140,45 +92,28 @@ public class ServicoController {
 	@DeleteMapping("/{id}")
 	public ResponseEntity<Void> deletar(@PathVariable Long id) {
 		try {
-			Optional<Servico> servico = servicoRepository.findById(id);
-
-			if (servico.isEmpty()) {
-				return ResponseEntity.notFound().build();
-			}
-
-			Servico servicoParaDeletar = servico.get();
-			servicoParaDeletar.setAtivo(false);
-			servicoRepository.save(servicoParaDeletar);
-
+			servicoService.deletar(id);
 			return ResponseEntity.noContent().build();
-
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.notFound().build();
 		}
 	}
 
-	@Operation(summary = "Buscar serviços por categoria")
+	@Operation(summary = "Buscar serviços por categoria DTO")
 	@GetMapping("/categoria/{categoria}")
-	public ResponseEntity<List<Servico>> buscarPorCategoria(@PathVariable String categoria) {
+	public ResponseEntity<List<ServicoResponse>> buscarPorCategoria(@PathVariable String categoria) {
 		try {
-			Servico.CategoriaServico categoriaEnum = Servico.CategoriaServico.valueOf(categoria.toUpperCase());
-			List<Servico> servicos = servicoRepository.findByCategoria(categoriaEnum);
+			List<ServicoResponse> servicos = servicoService.buscarPorCategoria(categoria);
 			return ResponseEntity.ok(servicos);
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().build();
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
 		}
 	}
 
-	@Operation(summary = "Buscar serviços por nome")
+	@Operation(summary = "Buscar serviços por nome DTO")
 	@GetMapping("/buscar/{nome}")
-	public ResponseEntity<List<Servico>> buscarPorNome(@PathVariable String nome) {
-		try {
-			List<Servico> servicos = servicoRepository.findByNomeContainingIgnoreCase(nome);
-			return ResponseEntity.ok(servicos);
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-		}
+	public ResponseEntity<List<ServicoResponse>> buscarPorNome(@PathVariable String nome) {
+		List<ServicoResponse> servicos = servicoService.buscarPorNome(nome);
+		return ResponseEntity.ok(servicos);
 	}
 }

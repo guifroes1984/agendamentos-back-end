@@ -1,11 +1,13 @@
 package com.guifroes1984.agendamentos.service;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.guifroes1984.agendamentos.dto.response.ProfissionalResponse;
+import com.guifroes1984.agendamentos.dto.resquest.ProfissionalRequest;
 import com.guifroes1984.agendamentos.model.Profissional;
 import com.guifroes1984.agendamentos.model.Usuario;
 import com.guifroes1984.agendamentos.repository.ProfissionalRepository;
@@ -15,98 +17,91 @@ import jakarta.transaction.Transactional;
 
 @Service
 public class ProfissionalService {
-    
+
 	@Autowired
-    private ProfissionalRepository profissionalRepository;
-	
+	private ProfissionalRepository profissionalRepository;
+
 	@Autowired
-    private UsuarioRepository usuarioRepository;
-    
-    public List<Profissional> listarTodos() {
-        return profissionalRepository.findAll();
-    }
-    
-    public List<Profissional> listarAtivos() {
-        return profissionalRepository.findByAtivoTrue();
-    }
-    
-    public Optional<Profissional> buscarPorId(Long id) {
-        return profissionalRepository.findById(id);
-    }
-    
-    public Optional<Profissional> buscarPorEmail(String email) {
-        return profissionalRepository.findByUsuarioEmail(email);
-    }
-    
-    @Transactional
-    public Profissional criar(Profissional profissional) {
-        // Validação básica
-        if (profissional.getUsuario() == null) {
-            throw new IllegalArgumentException("Usuário é obrigatório para criar profissional");
-        }
-        
-        // Se usuário tem ID, verificar se existe
-        if (profissional.getUsuario().getId() != null) {
-            Optional<Usuario> usuarioExistente = usuarioRepository.findById(profissional.getUsuario().getId());
-            if (usuarioExistente.isEmpty()) {
-                throw new IllegalArgumentException("Usuário não encontrado com ID: " + profissional.getUsuario().getId());
-            }
-            
-            // Atualizar role do usuário existente
-            Usuario usuario = usuarioExistente.get();
-            usuario.setRole(Usuario.Role.PROFISSIONAL);
-            usuarioRepository.save(usuario);
-        } else {
-            // Se usuário não tem ID, salvar novo usuário
-            Usuario novoUsuario = profissional.getUsuario();
-            novoUsuario.setRole(Usuario.Role.PROFISSIONAL);
-            Usuario usuarioSalvo = usuarioRepository.save(novoUsuario);
-            profissional.setUsuario(usuarioSalvo);
-        }
-        
-        return profissionalRepository.save(profissional);
-    }
-    
-    @Transactional
-    public Optional<Profissional> atualizar(Long id, Profissional profissionalAtualizado) {
-        Optional<Profissional> profissionalExistente = profissionalRepository.findById(id);
-        
-        if (profissionalExistente.isEmpty()) {
-            return Optional.empty();
-        }
-        
-        Profissional profissional = profissionalExistente.get();
-        
-        // Atualizar campos permitidos
-        profissional.setEspecialidade(profissionalAtualizado.getEspecialidade());
-        profissional.setFotoUrl(profissionalAtualizado.getFotoUrl());
-        profissional.setExperienciaAnos(profissionalAtualizado.getExperienciaAnos());
-        profissional.setDiasTrabalho(profissionalAtualizado.getDiasTrabalho());
-        profissional.setHoraInicio(profissionalAtualizado.getHoraInicio());
-        profissional.setHoraFim(profissionalAtualizado.getHoraFim());
-        profissional.setIntervaloMinutos(profissionalAtualizado.getIntervaloMinutos());
-        profissional.setAtivo(profissionalAtualizado.getAtivo());
-        
-        return Optional.of(profissionalRepository.save(profissional));
-    }
-    
-    @Transactional
-    public boolean deletar(Long id) {
-        Optional<Profissional> profissional = profissionalRepository.findById(id);
-        
-        if (profissional.isEmpty()) {
-            return false;
-        }
-        
-        // Soft delete - marca como inativo
-        Profissional profissionalParaDeletar = profissional.get();
-        profissionalParaDeletar.setAtivo(false);
-        profissionalRepository.save(profissionalParaDeletar);
-        
-        return true;
-    }
-    
-    public List<Profissional> buscarPorEspecialidade(String especialidade) {
-        return profissionalRepository.findByEspecialidadeContainingIgnoreCase(especialidade);
-    }
+	private UsuarioRepository usuarioRepository;
+
+	public List<ProfissionalResponse> listarTodos() {
+		return profissionalRepository.findAll().stream().map(ProfissionalResponse::new).collect(Collectors.toList());
+	}
+
+	public List<ProfissionalResponse> listarAtivos() {
+		return profissionalRepository.findByAtivoTrue().stream().map(ProfissionalResponse::new)
+				.collect(Collectors.toList());
+	}
+
+	public ProfissionalResponse buscarPorId(Long id) {
+		Profissional profissional = profissionalRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Profissional não encontrado"));
+		return new ProfissionalResponse(profissional);
+	}
+
+	public ProfissionalResponse buscarPorEmail(String email) {
+		Profissional profissional = profissionalRepository.findByUsuarioEmail(email)
+				.orElseThrow(() -> new IllegalArgumentException("Profissional não encontrado"));
+		return new ProfissionalResponse(profissional);
+	}
+
+	@Transactional
+	public ProfissionalResponse criar(ProfissionalRequest request) {
+
+		Usuario usuario = usuarioRepository.findById(request.getUsuarioId())
+				.orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+		if (profissionalRepository.findByUsuarioId(usuario.getId()).isPresent()) {
+			throw new IllegalArgumentException("Já existe profissional cadastrado para este usuário");
+		}
+
+		usuario.setRole(Usuario.Role.PROFISSIONAL);
+		usuarioRepository.save(usuario);
+
+		Profissional profissional = new Profissional();
+		profissional.setUsuario(usuario);
+		profissional.setEspecialidade(request.getEspecialidade());
+		profissional.setFotoUrl(request.getFotoUrl());
+		profissional.setExperienciaAnos(request.getExperienciaAnos());
+		profissional.setDiasTrabalho(request.getDiasTrabalho());
+		profissional.setHoraInicio(request.getHoraInicio());
+		profissional.setHoraFim(request.getHoraFim());
+		profissional.setIntervaloMinutos(request.getIntervaloMinutos() != null ? request.getIntervaloMinutos() : 15);
+		profissional.setAtivo(request.getAtivo() != null ? request.getAtivo() : true);
+
+		Profissional salvo = profissionalRepository.save(profissional);
+		return new ProfissionalResponse(salvo);
+	}
+
+	@Transactional
+	public ProfissionalResponse atualizar(Long id, ProfissionalRequest request) {
+		Profissional profissional = profissionalRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Profissional não encontrado"));
+
+		profissional.setEspecialidade(request.getEspecialidade());
+		profissional.setFotoUrl(request.getFotoUrl());
+		profissional.setExperienciaAnos(request.getExperienciaAnos());
+		profissional.setDiasTrabalho(request.getDiasTrabalho());
+		profissional.setHoraInicio(request.getHoraInicio());
+		profissional.setHoraFim(request.getHoraFim());
+		profissional.setIntervaloMinutos(request.getIntervaloMinutos());
+		profissional.setAtivo(request.getAtivo());
+
+		Profissional atualizado = profissionalRepository.save(profissional);
+		return new ProfissionalResponse(atualizado);
+	}
+
+	@Transactional
+	public void deletar(Long id) {
+		Profissional profissional = profissionalRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Profissional não encontrado"));
+
+		profissional.setAtivo(false);
+		profissionalRepository.save(profissional);
+	}
+
+	public List<ProfissionalResponse> buscarPorEspecialidade(String especialidade) {
+		return profissionalRepository.findByEspecialidadeContainingIgnoreCase(especialidade).stream()
+				.map(ProfissionalResponse::new).collect(Collectors.toList());
+	}
 }
