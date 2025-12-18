@@ -22,14 +22,25 @@ import org.springframework.web.bind.annotation.RestController;
 import com.guifroes1984.agendamentos.model.Agendamento;
 import com.guifroes1984.agendamentos.service.AgendamentoService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/agendamentos")
 @CrossOrigin(origins = "*")
+@Tag(name = "Agendamentos", description = "Gerenciamento de agendamentos")
 public class AgendamentoController {
 
 	@Autowired
 	private AgendamentoService agendamentoService;
 
+	@Operation(summary = "Listar todos os agendamentos")
+	@ApiResponse(responseCode = "200", description = "Lista de agendamentos retornada com sucesso")
 	@GetMapping
 	public ResponseEntity<List<Agendamento>> listarTodos() {
 		try {
@@ -40,6 +51,9 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Buscar agendamento por ID")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "Agendamento encontrado"),
+			@ApiResponse(responseCode = "404", description = "Agendamento não encontrado") })
 	@GetMapping("/{id}")
 	public ResponseEntity<Agendamento> buscarPorId(@PathVariable Long id) {
 		try {
@@ -55,8 +69,10 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Buscar agendamentos por cliente")
 	@GetMapping("/cliente/{clienteId}")
-	public ResponseEntity<List<Agendamento>> buscarPorCliente(@PathVariable Long clienteId) {
+	public ResponseEntity<List<Agendamento>> buscarPorCliente(
+			@Parameter(description = "ID do cliente", example = "5") @PathVariable Long clienteId) {
 		try {
 			List<Agendamento> agendamentos = agendamentoService.buscarPorCliente(clienteId);
 			return ResponseEntity.ok(agendamentos);
@@ -65,6 +81,7 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Buscar agendamentos futuros por cliente")
 	@GetMapping("/cliente/{clienteId}/futuros")
 	public ResponseEntity<List<Agendamento>> buscarFuturosPorCliente(@PathVariable Long clienteId) {
 		try {
@@ -75,6 +92,7 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Buscar agendamentos passados por cliente")
 	@GetMapping("/cliente/{clienteId}/passados")
 	public ResponseEntity<List<Agendamento>> buscarPassadosPorCliente(@PathVariable Long clienteId) {
 		try {
@@ -85,6 +103,7 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Buscar agendamentos por profissional")
 	@GetMapping("/profissional/{profissionalId}")
 	public ResponseEntity<List<Agendamento>> buscarPorProfissional(@PathVariable Long profissionalId) {
 		try {
@@ -95,6 +114,7 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Buscar agendamentos futuros por profissional")
 	@GetMapping("/profissional/{profissionalId}/futuros")
 	public ResponseEntity<List<Agendamento>> buscarFuturosPorProfissional(@PathVariable Long profissionalId) {
 		try {
@@ -105,8 +125,11 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Buscar agendamentos por status")
 	@GetMapping("/status/{status}")
-	public ResponseEntity<List<Agendamento>> buscarPorStatus(@PathVariable String status) {
+	public ResponseEntity<List<Agendamento>> buscarPorStatus(
+			@Parameter(description = "Status do agendamento", example = "AGENDADO") 
+			@PathVariable String status) {
 		try {
 			List<Agendamento> agendamentos = agendamentoService.buscarPorStatus(status);
 			return ResponseEntity.ok(agendamentos);
@@ -117,6 +140,9 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Criar novo agendamento")
+    @ApiResponse(responseCode = "201", description = "Agendamento criado com sucesso",
+        content = @Content(schema = @Schema(implementation = Agendamento.class)))
 	@PostMapping
 	public ResponseEntity<?> criar(@RequestBody Agendamento agendamento) {
 		try {
@@ -130,6 +156,7 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Atualizar agendamento")
 	@PutMapping("/{id}")
 	public ResponseEntity<?> atualizar(@PathVariable Long id, @RequestBody Agendamento agendamentoAtualizado) {
 		try {
@@ -148,6 +175,7 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Atualizar status do agendamento")
 	@PutMapping("/{id}/status")
 	public ResponseEntity<?> atualizarStatus(@PathVariable Long id, @RequestParam String status) {
 		try {
@@ -166,6 +194,7 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Cancelar agendamento")
 	@DeleteMapping("/{id}")
 	public ResponseEntity<?> cancelar(@PathVariable Long id) {
 		try {
@@ -184,6 +213,7 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Verificar disponibilidade do profissional")
 	@GetMapping("/disponibilidade")
 	public ResponseEntity<?> verificarDisponibilidade(@RequestParam Long profissionalId,
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
@@ -197,6 +227,7 @@ public class AgendamentoController {
 		}
 	}
 
+	@Operation(summary = "Buscar agendamentos por período")
 	@GetMapping("/periodo")
 	public ResponseEntity<List<Agendamento>> buscarPorPeriodo(
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
