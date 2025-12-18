@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,9 @@ public class UsuarioService {
 
 	@Autowired
 	private UsuarioRepository usuarioRepository;
+	
+	@Autowired
+	private PasswordEncoder passwordEncoder;
 
 	public List<UsuarioResponse> listarTodos() {
 		return usuarioRepository.findAll().stream().map(UsuarioResponse::new).collect(Collectors.toList());
@@ -44,7 +48,7 @@ public class UsuarioService {
 		Usuario usuario = new Usuario();
 		usuario.setNome(request.getNome());
 		usuario.setEmail(request.getEmail());
-		usuario.setSenha(request.getSenha());
+		usuario.setSenha(passwordEncoder.encode(request.getSenha()));
 		usuario.setRole(request.getRole() != null ? request.getRole() : Usuario.Role.CLIENTE);
 		usuario.setAtivo(request.getAtivo() != null ? request.getAtivo() : true);
 
@@ -64,7 +68,7 @@ public class UsuarioService {
 		usuario.setNome(request.getNome());
 		usuario.setEmail(request.getEmail());
 		if (request.getSenha() != null && !request.getSenha().trim().isEmpty()) {
-			usuario.setSenha(request.getSenha());
+			usuario.setSenha(passwordEncoder.encode(request.getSenha()));
 		}
 		usuario.setRole(request.getRole());
 		usuario.setAtivo(request.getAtivo());
