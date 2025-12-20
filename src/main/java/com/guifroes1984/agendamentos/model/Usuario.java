@@ -1,7 +1,12 @@
 package com.guifroes1984.agendamentos.model;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
+import java.util.Collection;
+import java.util.Collections;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,11 +15,14 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "TBL_USUARIOS")
-public class Usuario {
+public class Usuario implements UserDetails {
+
+	private static final long serialVersionUID = 1L;
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,6 +51,7 @@ public class Usuario {
 		ADMIN, PROFISSIONAL, CLIENTE
 	}
 
+	// Construtores
 	public Usuario() {
 		this.ativo = true;
 		this.dataCriacao = LocalDateTime.now();
@@ -57,6 +66,51 @@ public class Usuario {
 		this.dataCriacao = LocalDateTime.now();
 	}
 
+	// Métodos do UserDetails
+	@Override
+	public Collection<? extends GrantedAuthority> getAuthorities() {
+		return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.name()));
+	}
+
+	@Override
+	public String getPassword() {
+		return senha;
+	}
+
+	@Override
+	public String getUsername() {
+		return email;
+	}
+
+	@Override
+	public boolean isAccountNonExpired() {
+		return true;
+	}
+
+	@Override
+	public boolean isAccountNonLocked() {
+		return true;
+	}
+
+	@Override
+	public boolean isCredentialsNonExpired() {
+		return true;
+	}
+
+	@Override
+	public boolean isEnabled() {
+		return ativo;
+	}
+
+	// PrePersist para garantir dataCriacao
+	@PrePersist
+	protected void onCreate() {
+		if (dataCriacao == null) {
+			dataCriacao = LocalDateTime.now();
+		}
+	}
+
+	// Getters e Setters
 	public Long getId() {
 		return id;
 	}
@@ -113,21 +167,46 @@ public class Usuario {
 		this.dataCriacao = dataCriacao;
 	}
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(id);
+	// Método estático para builder pattern (opcional)
+	public static Builder builder() {
+		return new Builder();
 	}
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Usuario other = (Usuario) obj;
-		return Objects.equals(id, other.id);
-	}
+	// Builder Pattern (opcional, mas útil)
+	public static class Builder {
+		private Usuario usuario;
 
+		public Builder() {
+			usuario = new Usuario();
+		}
+
+		public Builder nome(String nome) {
+			usuario.setNome(nome);
+			return this;
+		}
+
+		public Builder email(String email) {
+			usuario.setEmail(email);
+			return this;
+		}
+
+		public Builder senha(String senha) {
+			usuario.setSenha(senha);
+			return this;
+		}
+
+		public Builder role(Role role) {
+			usuario.setRole(role);
+			return this;
+		}
+
+		public Builder ativo(Boolean ativo) {
+			usuario.setAtivo(ativo);
+			return this;
+		}
+
+		public Usuario build() {
+			return usuario;
+		}
+	}
 }
